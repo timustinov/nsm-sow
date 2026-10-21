@@ -27,7 +27,7 @@ class VKPost(BaseModel):
     comments: VKCommentsInfo
     likes: VKCounter
     reposts: VKCounter
-    views: VKCounter
+    views: VKCounter = VKCounter(count=0)
     post_type: VKPostType
     attachments: list
     marked_as_ads: int = 0

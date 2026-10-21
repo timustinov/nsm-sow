@@ -29,7 +29,7 @@ class VKClient:
         )
         request.raise_for_status()
         response = request.json()
-        if "error" in response:  # VK отвечает ошибкой API с HTTP 200
+        if "error" in response:
             raise RuntimeError(f"{method}: {response['error']['error_msg']}")
         return response
 
@@ -42,18 +42,17 @@ class VKClient:
     def get_wall_count(self, domain: str) -> int:
         return self.get(method="wall.get", domain=domain, count=1)["response"]["count"]
 
-    def get_group_members_count(self, domain: str) -> int:
+    def get_group(self, domain: str, fields: str = "members_count") -> dict:
         response = self.get(
-            method="groups.getById", group_id=domain, fields="members_count"
+            method="groups.getById", group_id=domain, fields=fields
         )["response"]
         group = response["groups"] if isinstance(response, dict) else response
-        return group[0]["members_count"]  # форма ответа зависит от версии API
+        return group[0]
+
+    def get_group_members_count(self, domain: str) -> int:
+        return self.get_group(domain)["members_count"]
 
     def _find_offset(self, domain: str, timestamp: float, low: int, high: int) -> int:
-        """Бинпоиск: первый offset из [low, high), где пост старше timestamp.
-
-        Стена идёт от новых постов к старым. Если таких постов нет, вернёт high.
-        """
         while low < high:
             middle = (low + high) // 2
             post = self.get_wall_posts(domain=domain, count=1, offset=middle)[0]
@@ -66,10 +65,8 @@ class VKClient:
     def get_wall_posts_by_date_range(
         self, domain: str, end_date: datetime.datetime, start_date: datetime.datetime
     ) -> list[schemas.VKPost]:
-        """Посты за [start_date, end_date), от новых к старым."""
         BATCH_SIZE: int = 100
         total = self.get_wall_count(domain)
-        # offset 0 в поиск не входит: закреплённый пост стоит там вне порядка дат
         first = self._find_offset(domain, end_date.timestamp(), 1, total)
         last = self._find_offset(domain, start_date.timestamp(), first, total)
 
